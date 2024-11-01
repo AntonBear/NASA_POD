@@ -1,62 +1,50 @@
-package com.anton.nasa_pod
-import android.app.Activity
+import androidx.activity.viewModels
+import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.util.Log
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.anton.nasa_pod.R
+import com.anton.nasa_pod.Repository
+import com.anton.nasa_pod.RepositoryImp
+import com.anton.nasa_pod.TodoAdapter
 import io.ktor.client.HttpClient
-import io.ktor.client.call.body
 import io.ktor.client.engine.android.Android
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.request.get
-import io.ktor.serialization.kotlinx.json.json
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
-class MainActivity : Activity() {
-    private val client = HttpClient(Android) { // Android engine для Ktor
-        install(ContentNegotiation) {
-            json()
-        }
+
+class MainActivity : AppCompatActivity() {
+
+    private val viewModel: TodoViewModel by viewModels {
+        val client = HttpClient(Android)
+        val repository = RepositoryImp(client)
+        TodoViewModelFactory(repository)
     }
+
     private lateinit var recyclerView: RecyclerView
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main) // main_activity.xml - основной layout
+        setContentView(R.layout.activity_main)
+
         recyclerView = findViewById(R.id.recycler_view)
         recyclerView.layoutManager = LinearLayoutManager(this)
 
 
-
-        // 4. Загрузка данных и обновление RecyclerView в корутине
-        CoroutineScope(Dispatchers.Main).launch{
-            try {
-                Log.d("MainActivity", "Starting network request") // Лог перед запросом
-                val todos: List<Todo> = withContext(Dispatchers.IO) {
-                    client.get("https://jsonplaceholder.typicode.com/todos").body()
-                }
-                Log.d("MainActivity", "Received ${todos.size} todos") // Лог после получения данных
-                recyclerView.adapter = TodoAdapter(todos)
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Error: ${e.message}") // Лог ошибки
-            } finally {
-                client.close()
-            }
-
-            try {
-                val todos: List<Todo> = withContext(Dispatchers.IO) { // запрос в IO диспетчере
-                    client.get("https://jsonplaceholder.typicode.com/todos").body()
-                }
-                recyclerView.adapter = TodoAdapter(todos)
-            } catch (e: Exception) {
-
-            } finally {
-                client.close()
-            }
+        viewModel.todos.observe(this) { todos ->
+            val adapter = TodoAdapter(todos)
+            recyclerView.adapter = adapter
         }
+    }
+}
 
+class TodoViewModelFactory(private val repository: Repository) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(TodoViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return TodoViewModel(repository) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

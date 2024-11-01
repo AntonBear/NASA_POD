@@ -5,6 +5,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import models.Todo
 
 class TodoAdapter(private val todos: List<Todo>) :
     RecyclerView.Adapter<TodoAdapter.ViewHolder>() {
